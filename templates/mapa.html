@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Rutas de Entrega</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    
+    <!-- Leaflet AntPath CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-ant-path/dist/leaflet-ant-path.css" />
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+        .map-container {
+            flex: 2;
+            min-width: 400px;
+            height: 600px;
+        }
+        .info-container {
+            flex: 1;
+            padding: 1em;
+            background-color: #f4f4f4;
+            min-width: 300px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .ruta-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 5px solid #007BFF; /* Este es el borde izquierdo por defecto */
+        }
+        h2 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 style="padding: 1em; text-align: center;">Visualización de Rutas de Entrega</h2>
+    <div class="container">
+        <!-- Mapa -->
+        <div class="map-container" id="map"></div>
+
+        <!-- Info de rutas -->
+        <div class="info-container">
+            <h3>Detalles de Rutas</h3>
+            {% for r in rutas_completas %}
+            <div class="ruta-card" style="border-left-color: {{ r.color }};">
+                <strong>Ruta #{{ loop.index }}</strong><br>
+                <strong></strong> <span style="color: {{ r.color }};">{{ r.color }}</span><br>
+                <strong>Carga:</strong> {{ r.carga }} unidades<br>
+                <strong>Distancia:</strong> {{ r.distancia }} km<br>
+                <strong>Tiempo estimado:</strong> {{ r.tiempo }} hrs<br>
+                <strong>Gasto en comida:</strong> ${{ r.gasto }}<br>
+                <strong>Itinerario:</strong> CDMX → {{ r.ruta | join(' → ') }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Leaflet AntPath JS -->
+    <script src="https://unpkg.com/leaflet-ant-path/dist/leaflet-ant-path.js"></script>
+    <script>
+        const coord = {{ coord | tojson }};
+        const almacen = {{ almacen | tojson }};
+        const rutas = {{ rutas_completas | tojson }};
+
+        console.log("Rutas:", rutas);  // Depuración: Verificar rutas en consola
+
+        const map = L.map('map').setView(almacen, 6);
+
+        // Capa base del mapa (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Añadir marcador para el almacén
+        L.marker(almacen, { title: "Almacén" }).addTo(map)
+            .bindPopup("<b>Almacén Central</b>").openPopup();
+
+        // Colores para las rutas (fijos)
+        const colores = ['red', 'blue', 'green'];  // Asignamos colores fijos a las rutas
+
+        // Recorrer cada ruta y trazarla en el mapa
+        rutas.forEach((ruta, index) => {
+            // Obtener las coordenadas de cada ciudad en la ruta
+            const latlngs = [almacen];  // Empezamos con el almacén
+
+            // Convertir las ciudades a coordenadas
+            ruta.ruta.forEach(ciudad => {
+                const coordsCiudad = coord[ciudad];
+                if (coordsCiudad) {
+                    latlngs.push(coordsCiudad);
+                }
+            });
+
+            latlngs.push(almacen);  // Volver al almacén
+
+            console.log("LatLngs para la ruta #" + (index + 1) + ": ", latlngs);
+
+            // Asignar el color fijo basado en el índice
+            const color = colores[index % colores.length];
+
+            // Trazar la ruta usando flechas (AntPath) con color específico
+            const polyline = L.polyline(latlngs, { color: color, weight: 5 }).addTo(map);
+
+            // Añadir flechas con animación (Leaflet AntPath)
+            const antPath = L.polyline.antPath(latlngs, {
+                delay: 500,
+                dashArray: [10, 20],
+                weight: 5,
+                color: color,
+                opacity: 0.7
+            }).addTo(map);
+
+            antPath.bindPopup(`
+                <b>Ruta #${index + 1}</b><br>
+                Carga: ${ruta.carga} unidades<br>
+                Distancia: ${ruta.distancia} km<br>
+                Tiempo estimado: ${ruta.tiempo} hrs<br>
+                Gasto en comida: $${ruta.gasto}
+            `);
+
+            // Asignar el color a la ruta para usarlo en los detalles
+            ruta.color = color;
+        });
+
+        // Añadir marcadores para cada ciudad
+        Object.entries(coord).forEach(([ciudad, coor]) => {
+            L.marker(coor, { title: ciudad }).addTo(map)
+                .bindPopup(`<b>${ciudad}</b>`);
+        });
+    </script>
+
+</body>
+</html>
