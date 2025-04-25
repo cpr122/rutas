@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 import math
 from operator import itemgetter
 
-main = FastAPI()
+app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 coord = {
