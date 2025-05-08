@@ -68,4 +68,4 @@ if __name__ == "__main__":
     print(ruta)
     print("Distancia Total: " + str(evalua_ruta(ruta)))
 
-    random
+    
